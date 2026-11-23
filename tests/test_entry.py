@@ -1,0 +1,48 @@
+"""Tests for the Vacuum's Alibi entry."""
+
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+import main  # noqa: E402
+
+
+class TestEntryLine(unittest.TestCase):
+    def test_line_length(self):
+        self.assertGreaterEqual(len(main.LINE), 1)
+        self.assertLessEqual(len(main.LINE), 200)
+
+    def test_line_non_blank_single_line(self):
+        self.assertTrue(main.LINE.strip())
+        self.assertNotIn("\n", main.LINE)
+        self.assertNotIn("\r", main.LINE)
+
+    def test_line_is_utf8(self):
+        main.LINE.encode("utf-8")
+
+    def test_program_writes_exact_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = dict(os.environ, VACUUM_OUTPUT_DIR=tmp)
+            result = subprocess.run(
+                [sys.executable, os.path.join(REPO, "main.py")],
+                env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            path = os.path.join(tmp, "entry.txt")
+            with open(path, encoding="utf-8") as f:
+                content = f.read()
+            self.assertEqual(content, main.LINE)
+            self.assertEqual(len(content), len(main.LINE))
+            self.assertTrue(1 <= len(content) <= 200)
+            self.assertTrue(content.strip())
+            # Outputs must be readable by the grader's collector user.
+            self.assertEqual(oct(os.stat(path).st_mode & 0o777), "0o644")
+
+
+if __name__ == "__main__":
+    unittest.main()
