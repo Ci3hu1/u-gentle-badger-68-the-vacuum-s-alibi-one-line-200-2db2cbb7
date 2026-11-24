@@ -9,6 +9,7 @@ the judged line, 1-200 characters, not only whitespace.
 """
 
 import os
+from pathlib import Path
 
 LINE = (
     "I did not miss the spot. I mapped it, logged it, and formally "
@@ -19,17 +20,35 @@ OUTPUT_DIR = os.environ.get("VACUUM_OUTPUT_DIR", "/output")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "entry.txt")
 
 
+def validate(text: str) -> str:
+    """Check the entry line against the sealed gate before writing it.
+
+    The gate wants exactly one line, 1-200 characters, not only
+    whitespace, with no line breaks or control characters. Returns the
+    line unchanged so callers can chain it.
+    """
+    if not text.strip():
+        raise ValueError("entry line must not be only whitespace")
+    if not 1 <= len(text) <= 200:
+        raise ValueError(f"entry line must be 1-200 characters, got {len(text)}")
+    if "\n" in text or "\r" in text:
+        raise ValueError("entry must be a single line")
+    if any(ord(ch) < 32 for ch in text):
+        raise ValueError("entry line must not contain control characters")
+    return text
+
+
 def main():
-    text = LINE
-    assert 1 <= len(text) <= 200, "entry line must be 1-200 characters"
-    assert text.strip(), "entry line must not be only whitespace"
-    assert "\n" not in text, "entry must be a single line"
+    validate(LINE)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write(text)
+        f.write(LINE)
     # The grader collects outputs as another user: leave them readable.
     os.chmod(OUTPUT_FILE, 0o644)
     os.chmod(OUTPUT_DIR, 0o755)
+    # Self-check: the file must hold exactly the line, nothing else.
+    if Path(OUTPUT_FILE).read_text(encoding="utf-8") != LINE:
+        raise ValueError("entry file does not hold exactly the line")
 
 
 if __name__ == "__main__":

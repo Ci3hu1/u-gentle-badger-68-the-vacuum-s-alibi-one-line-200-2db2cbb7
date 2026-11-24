@@ -13,6 +13,16 @@ import main  # noqa: E402
 
 
 class TestEntryLine(unittest.TestCase):
+    def test_validate_accepts_the_line(self):
+        """validate() passes the approved line through unchanged."""
+        self.assertEqual(main.validate(main.LINE), main.LINE)
+
+    def test_validate_rejects_bad_lines(self):
+        """validate() rejects blank, over-long, multi-line and control-char lines."""
+        for bad in ("", "   ", "x" * 201, "one\ntwo", "a\rb", "tab\there"):
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                main.validate(bad)
+
     def test_line_length(self):
         self.assertGreaterEqual(len(main.LINE), 1)
         self.assertLessEqual(len(main.LINE), 200)
