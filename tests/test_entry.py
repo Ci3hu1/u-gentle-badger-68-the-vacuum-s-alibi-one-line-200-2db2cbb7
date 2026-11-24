@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
@@ -52,6 +53,29 @@ class TestEntryLine(unittest.TestCase):
             self.assertTrue(content.strip())
             # Outputs must be readable by the grader's collector user.
             self.assertEqual(oct(os.stat(path).st_mode & 0o777), "0o644")
+
+    def test_program_succeeds_when_dir_chmod_fails(self):
+        """main() still succeeds when the output directory cannot be
+        chmodded — the grader's /output belongs to another user, and the
+        unguarded directory chmod crashed the v2 submission (exit 1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out_file = os.path.join(tmp, "entry.txt")
+            orig_dir, orig_file = main.OUTPUT_DIR, main.OUTPUT_FILE
+            main.OUTPUT_DIR, main.OUTPUT_FILE = tmp, out_file
+            real_chmod = os.chmod
+
+            def fake_chmod(path, mode):
+                if os.path.abspath(path) == os.path.abspath(tmp):
+                    raise PermissionError("directory owned by another user")
+                return real_chmod(path, mode)
+
+            try:
+                with mock.patch.object(os, "chmod", fake_chmod):
+                    main.main()
+            finally:
+                main.OUTPUT_DIR, main.OUTPUT_FILE = orig_dir, orig_file
+            with open(out_file, encoding="utf-8") as f:
+                self.assertEqual(f.read(), main.LINE)
 
 
 if __name__ == "__main__":

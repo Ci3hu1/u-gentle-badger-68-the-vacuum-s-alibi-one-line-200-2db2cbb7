@@ -45,7 +45,12 @@ def main():
         f.write(LINE)
     # The grader collects outputs as another user: leave them readable.
     os.chmod(OUTPUT_FILE, 0o644)
-    os.chmod(OUTPUT_DIR, 0o755)
+    # /output may belong to another user in the grader: a failed directory
+    # chmod must not fail the run (it crashed the v2 submission, exit 1).
+    try:
+        os.chmod(OUTPUT_DIR, 0o755)
+    except OSError:
+        pass
     # Self-check: the file must hold exactly the line, nothing else.
     if Path(OUTPUT_FILE).read_text(encoding="utf-8") != LINE:
         raise ValueError("entry file does not hold exactly the line")
